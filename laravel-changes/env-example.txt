@@ -1,0 +1,25 @@
+# ============================================
+# AGREGAR ESTO A TU .env DE LARAVEL
+# ============================================
+
+# OpenAI (mantener como backup o desactivar)
+OPENAI_API_KEY=sk-xxx
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_CHAT_MODEL=gpt-4o-mini
+
+# ============================================
+# API Local (Ollama/Qwen)
+# ============================================
+# Poner true para usar la API local en lugar de OpenAI
+LOCAL_AI_ENABLED=true
+
+# URL de tu VPS donde corre la API
+LOCAL_AI_BASE_URL=http://TU-IP-VPS:8000/v1
+
+# API Key generada durante la instalación
+LOCAL_AI_API_KEY=tu-api-key-generada
+
+# Modelos
+LOCAL_AI_CHAT_MODEL=qwen2.5:7b-instruct
+LOCAL_AI_EMBEDDING_MODEL=nomic-embed-text
