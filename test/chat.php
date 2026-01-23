@@ -10,7 +10,7 @@ $apiKey = 'fd4d2af95ef7df9f1a1bcbd0000dc408f091f77ec5b28e23f8293c71f80b1d3a';
 
 $modelos = array(
     'qwen' => 'qwen2.5:7b-instruct',
-    'dolphin' => 'mannix/dolphin-2.9.2-qwen2-7b'
+    'dolphin' => 'dolphin-mistral:7b-v2.6'
 );
 
 // Obtener modelo seleccionado
