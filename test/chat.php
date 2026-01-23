@@ -287,7 +287,7 @@ if ($testResponse) {
 <body>
     <div class="container">
         <h1>Chat IA Local</h1>
-        <p class="subtitle">Probando modelos Ollama</p>
+        <p class="subtitle">Probando modelos Ollama - v1.2</p>
 
         <div class="modelo-selector">
             <a href="?modelo=qwen" class="modelo-btn <?php echo $modeloKey === 'qwen' ? 'active' : ''; ?>">
