@@ -1,5 +1,7 @@
-# Usar PHP 8.3
-AddHandler application/x-httpd-php83 .php
+# Usar PHP 8.3 (Ferozo)
+<FilesMatch \.php$>
+    SetHandler application/x-httpd-php83
+</FilesMatch>
 
 # Proteger archivos sensibles
 <Files "config.php">
@@ -11,9 +13,3 @@ AddHandler application/x-httpd-php83 .php
     Order Allow,Deny
     Deny from all
 </Files>
-
-# Permitir acceso a la carpeta api
-<Directory "api">
-    Order Allow,Deny
-    Allow from all
-</Directory>
