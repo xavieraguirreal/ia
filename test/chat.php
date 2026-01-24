@@ -32,7 +32,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['mensaje'])) {
 
     $inicio = microtime(true);
 
-    $ch = curl_init($baseUrl . '/v1/chat/completions');
+    // Para modelo uncensored, llamar directo a Ollama (sin pasar por FastAPI)
+    if ($modeloActual === 'uncensored-custom') {
+        $ollamaUrl = 'http://localhost:11434/api/chat';
+        $ch = curl_init($ollamaUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array(
+            'model' => $modeloActual,
+            'messages' => array(
+                array('role' => 'user', 'content' => $mensaje)
+            ),
+            'stream' => false
+        )));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 180);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $tiempoRespuesta = round(microtime(true) - $inicio, 2);
+
+        if ($httpCode === 200) {
+            $data = json_decode($response, true);
+            $respuesta = isset($data['message']['content']) ? $data['message']['content'] : 'Sin respuesta';
+        } else {
+            $respuesta = 'Error HTTP ' . $httpCode . ': ' . $response;
+        }
+    } else {
+        // Para otros modelos, usar FastAPI
+        $ch = curl_init($baseUrl . '/v1/chat/completions');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array(
@@ -72,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['mensaje'])) {
             : 'Sin respuesta';
     } else {
         $respuesta = 'Error HTTP ' . $httpCode . ': ' . $response;
+    }
     }
 }
 
@@ -289,7 +320,7 @@ if ($testResponse) {
 <body>
     <div class="container">
         <h1>Chat IA Local</h1>
-        <p class="subtitle">Probando modelos Ollama - v1.5</p>
+        <p class="subtitle">Probando modelos Ollama - v1.6</p>
 
         <div class="modelo-selector">
             <a href="?modelo=qwen" class="modelo-btn <?php echo $modeloKey === 'qwen' ? 'active' : ''; ?>">
