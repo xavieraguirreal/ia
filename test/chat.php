@@ -9,7 +9,7 @@ $modelos = array(
     'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5 7B', 'directo' => false),
     'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin-Mistral', 'directo' => false),
     'uncensored' => array('id' => 'uncensored-custom', 'nombre' => 'Wizard Uncensored', 'directo' => true),
-    'escritor' => array('id' => 'escritor-erotico', 'nombre' => 'Escritor Erotico', 'directo' => true)
+    'escritor' => array('id' => 'escritor-erotico', 'nombre' => 'Escritor', 'directo' => true)
 );
 
 $modeloKey = isset($_GET['modelo']) ? $_GET['modelo'] : 'qwen';
