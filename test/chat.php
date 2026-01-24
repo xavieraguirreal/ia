@@ -1,13 +1,13 @@
 <?php
 /**
  * Chat interactivo con streaming
- * v1.9 - Streaming + Detener
+ * v2.0 - Streaming en todos
  */
 session_start();
 
 $modelos = array(
-    'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5 7B', 'directo' => false),
-    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin-Mistral', 'directo' => false),
+    'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5', 'directo' => true),
+    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin', 'directo' => true),
     'uncensored' => array('id' => 'uncensored-custom', 'nombre' => 'Wizard Uncensored', 'directo' => true),
     'escritor' => array('id' => 'escritor-erotico', 'nombre' => 'Escritor', 'directo' => true)
 );
@@ -112,7 +112,7 @@ $historial = $_SESSION['historial'][$modeloKey];
 <body>
     <div class="container">
         <h1>Chat IA Local</h1>
-        <p class="subtitle">v1.9 - Streaming + Detener | <?php echo $modeloNombre; ?></p>
+        <p class="subtitle">v2.0 - Streaming en todos | <?php echo $modeloNombre; ?></p>
 
         <div class="modelo-selector">
             <?php foreach ($modelos as $key => $modelo): ?>
