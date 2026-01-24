@@ -11,7 +11,7 @@ $apiKey = 'fd4d2af95ef7df9f1a1bcbd0000dc408f091f77ec5b28e23f8293c71f80b1d3a';
 $modelos = array(
     'qwen' => 'qwen2.5:7b-instruct',
     'dolphin' => 'dolphin-mistral:7b-v2.6',
-    'uncensored' => 'wizard-vicuna-uncensored:7b'
+    'uncensored' => 'uncensored-custom'
 );
 
 // Obtener modelo seleccionado
@@ -288,7 +288,7 @@ if ($testResponse) {
 <body>
     <div class="container">
         <h1>Chat IA Local</h1>
-        <p class="subtitle">Probando modelos Ollama - v1.3</p>
+        <p class="subtitle">Probando modelos Ollama - v1.4</p>
 
         <div class="modelo-selector">
             <a href="?modelo=qwen" class="modelo-btn <?php echo $modeloKey === 'qwen' ? 'active' : ''; ?>">
