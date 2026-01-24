@@ -6,9 +6,9 @@
 
 // Base de datos
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'verumax_ia');  // Cambiar por tu base de datos
-define('DB_USER', 'root');        // Cambiar por tu usuario
-define('DB_PASS', '');            // Cambiar por tu password
+define('DB_NAME', 'verumax_ia');
+define('DB_USER', 'verumax_admin');
+define('DB_PASS', 'CAMBIAR_PASSWORD');
 
 // Ollama
 define('OLLAMA_URL', 'http://localhost:11434');
@@ -17,7 +17,7 @@ define('OLLAMA_URL', 'http://localhost:11434');
 define('FASTAPI_URL', 'http://localhost:8000');
 
 // Admin
-define('ADMIN_PASSWORD', 'cambiar_esta_password');  // CAMBIAR!
+define('ADMIN_PASSWORD', 'CAMBIAR_PASSWORD');
 
 // Timezone
 date_default_timezone_set('America/Argentina/Buenos_Aires');
