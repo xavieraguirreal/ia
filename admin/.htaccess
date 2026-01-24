@@ -1,0 +1,16 @@
+# Proteger archivos sensibles
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+<Files "api-middleware.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Permitir acceso a la carpeta api
+<Directory "api">
+    Order Allow,Deny
+    Allow from all
+</Directory>

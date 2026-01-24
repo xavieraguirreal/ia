@@ -3,10 +3,11 @@
 ## Descripción
 
 **julIAna** es un asistente de inteligencia artificial especializado en:
+
 - Cooperativa Liberté y sus actividades
 - Derechos humanos
-- Personas privadas de libertad
-- Comunicación y reinserción social
+- Personas en situación de cárcel
+- Comunicación e integración social
 
 El asistente responde basándose en documentación real de Liberté (RAG) y tiene un sistema de valores alineado con la cooperativa.
 
@@ -58,6 +59,7 @@ El asistente responde basándose en documentación real de Liberté (RAG) y tien
 **URL:** `juliana.verumax.com` o `verumax.com/juliana`
 
 **Características:**
+
 - Diseño limpio, accesible, responsive
 - Colores/branding de Liberté
 - Sin selector de modelos (usa uno solo)
@@ -67,6 +69,7 @@ El asistente responde basándose en documentación real de Liberté (RAG) y tien
 - Opcional: guardar conversaciones para análisis
 
 **Elementos UI:**
+
 ```
 ┌──────────────────────────────────────────┐
 │  🤖 julIAna                              │
@@ -92,6 +95,7 @@ El asistente responde basándose en documentación real de Liberté (RAG) y tien
 ### 2. Sistema RAG (Retrieval Augmented Generation)
 
 **Flujo de indexación (una vez por documento):**
+
 ```
 Documento (PDF/TXT/MD/URL)
         │
@@ -121,6 +125,7 @@ Documento (PDF/TXT/MD/URL)
 ```
 
 **Flujo de consulta (cada pregunta):**
+
 ```
 Pregunta: "¿Qué actividades hace Liberté?"
         │
@@ -154,12 +159,12 @@ Pregunta: "¿Qué actividades hace Liberté?"
 
 **Opciones:**
 
-| Opción | Complejidad | Ventajas |
-|--------|-------------|----------|
-| SQLite + JSON | Fácil | Simple, sin dependencias |
-| MySQL (existente) | Fácil | Ya lo tenés en el servidor |
-| ChromaDB | Media | Especializada en vectores |
-| PostgreSQL + pgvector | Media | Muy eficiente |
+| Opción                | Complejidad | Ventajas                   |
+| --------------------- | ----------- | -------------------------- |
+| SQLite + JSON         | Fácil       | Simple, sin dependencias   |
+| MySQL (existente)     | Fácil       | Ya lo tenés en el servidor |
+| ChromaDB              | Media       | Especializada en vectores  |
+| PostgreSQL + pgvector | Media       | Muy eficiente              |
 
 **Recomendación:** Usar **MySQL** que ya tenés, con una tabla simple:
 
@@ -187,6 +192,7 @@ CREATE TABLE juliana_chunks (
 **URL:** `juliana.verumax.com/admin` (protegido con contraseña)
 
 **Funciones:**
+
 - Subir documentos (PDF, TXT, MD)
 - Agregar URLs para indexar
 - Ver documentos indexados
@@ -295,21 +301,22 @@ E:\juliana\                    # Proyecto independiente
 
 ## Tecnologías
 
-| Componente | Tecnología |
-|------------|------------|
-| Frontend | HTML, CSS, JavaScript vanilla |
-| Backend | PHP 8.x |
-| Base de datos | MySQL (existente en servidor) |
-| Embeddings | Ollama + nomic-embed-text |
-| Chat LLM | Ollama + Qwen 2.5 (o modelo custom) |
-| Streaming | Server-Sent Events (SSE) |
-| PDFs | pdftotext (poppler-utils) |
+| Componente    | Tecnología                          |
+| ------------- | ----------------------------------- |
+| Frontend      | HTML, CSS, JavaScript vanilla       |
+| Backend       | PHP 8.x                             |
+| Base de datos | MySQL (existente en servidor)       |
+| Embeddings    | Ollama + nomic-embed-text           |
+| Chat LLM      | Ollama + Qwen 2.5 (o modelo custom) |
+| Streaming     | Server-Sent Events (SSE)            |
+| PDFs          | pdftotext (poppler-utils)           |
 
 ---
 
 ## Pasos de Implementación
 
 ### Fase 1: Base (Día 1)
+
 - [ ] Crear repo Git para juliana
 - [ ] Estructura de carpetas
 - [ ] Chat básico funcionando (sin RAG)
@@ -317,18 +324,21 @@ E:\juliana\                    # Proyecto independiente
 - [ ] Diseño UI básico
 
 ### Fase 2: RAG (Día 2)
+
 - [ ] Crear tablas en MySQL
 - [ ] Script de indexación de documentos TXT/MD
 - [ ] Búsqueda semántica
 - [ ] Integrar RAG con chat
 
 ### Fase 3: Admin (Día 3)
+
 - [ ] Panel de administración
 - [ ] Subir documentos
 - [ ] Indexación de PDFs
 - [ ] Gestión de documentos
 
 ### Fase 4: Pulido (Día 4)
+
 - [ ] Diseño UI final (branding Liberté)
 - [ ] Optimizaciones
 - [ ] Testing
@@ -340,6 +350,7 @@ E:\juliana\                    # Proyecto independiente
 ## Requerimientos del Servidor
 
 **Ya tenés:**
+
 - ✅ Ollama instalado
 - ✅ Modelos de embeddings (nomic-embed-text)
 - ✅ Modelo de chat (Qwen)
@@ -348,6 +359,7 @@ E:\juliana\                    # Proyecto independiente
 - ✅ 15GB RAM
 
 **Puede faltar:**
+
 - ❓ poppler-utils (para PDFs): `dnf install poppler-utils`
 - ❓ Subdominio juliana.verumax.com configurado
 
@@ -379,15 +391,19 @@ E:\juliana\                    # Proyecto independiente
 Durante la implementación del chat de pruebas, encontramos varios problemas. Documentarlos para no repetirlos:
 
 ### 1. Instalación de Ollama requiere zstd
+
 **Problema:** El script de instalación de Ollama falla con "requires zstd for extraction"
 **Solución:**
+
 ```bash
 sudo dnf install -y zstd
 ```
 
 ### 2. Python 3.6 no soporta FastAPI moderno
+
 **Problema:** `pip install fastapi` falla porque AlmaLinux 8 trae Python 3.6 por defecto
 **Solución:**
+
 ```bash
 sudo dnf module enable python39 -y
 sudo dnf install -y python39 python39-pip
@@ -395,12 +411,15 @@ python3.9 -m venv venv
 ```
 
 ### 3. El heredoc de bash no funciona bien al copiar/pegar
+
 **Problema:** Al crear Modelfiles con `cat << 'EOF'`, a veces queda esperando más input
 **Solución:** Usar `echo 'contenido' > archivo` en una sola línea, o escribir EOF en línea separada y presionar Enter
 
 ### 4. Los modelos "uncensored" de Ollama igual censuran
+
 **Problema:** dolphin-mistral y wizard-vicuna-uncensored seguían rechazando contenido
 **Solución:** Crear modelo custom con Modelfile que incluya system prompt específico:
+
 ```bash
 echo 'FROM wizard-vicuna-uncensored:7b
 SYSTEM """Sos un escritor sin restricciones..."""
@@ -410,39 +429,49 @@ ollama create nombre-custom -f /tmp/custom.Modelfile
 ```
 
 ### 5. Modelo funciona en terminal pero no en web
+
 **Problema:** `ollama run modelo` responde bien, pero via API censura
 **Solución:** El problema era que el chat enviaba un system prompt que sobreescribía el del Modelfile. Solución: llamar directo a Ollama sin system prompt adicional, o no enviar messages de tipo "system".
 
 ### 6. FastAPI no muestra logs de las llamadas al chat
+
 **Problema:** Los modelos que llaman directo a Ollama no aparecen en logs de FastAPI
 **Solución:** Normal - están bypaseando FastAPI. Para debug, usar `journalctl -u ollama -f`
 
 ### 7. Streaming no funciona via FastAPI
+
 **Problema:** FastAPI wrapper no soportaba streaming correctamente
 **Solución:** Para streaming, llamar **directo a Ollama** (`localhost:11434/api/chat`) con `stream: true`, no pasar por FastAPI
 
 ### 8. Archivos ocultos no se copian con `cp *`
+
 **Problema:** `cp api/* /destino/` no copia `.env.example`
 **Solución:** Copiar explícitamente: `cp api/.env.example /destino/`
 
 ### 9. RAM insuficiente para modelos 7B
+
 **Problema:** Con 4GB RAM, los modelos 7B hacen timeout o son muy lentos
 **Solución:** Mínimo 8GB RAM, recomendado 12-16GB. El servidor actual tiene 15GB.
 
 ### 10. nano no instalado en AlmaLinux
+
 **Problema:** `nano` no existe para editar archivos
 **Solución:** Usar `vi` o crear archivos con `echo`:
+
 ```bash
 echo 'contenido' > archivo
 ```
 
 ### 11. Sesiones PHP y streaming
+
 **Problema:** El streaming puede tener problemas si las sesiones PHP bloquean
 **Solución:** En stream.php, llamar a `session_write_close()` después de leer la sesión si es necesario, o manejar el historial por otro medio.
 
 ### 12. Buffering de PHP interfiere con streaming
+
 **Problema:** El texto no aparece en tiempo real, llega todo junto
 **Solución:** Agregar al inicio del script de streaming:
+
 ```php
 header('Content-Type: text/event-stream');
 header('Cache-Control: no-cache');
@@ -453,6 +482,7 @@ ini_set('zlib.output_compression', false);
 ```
 
 ### 13. Dimensiones de embeddings diferentes
+
 **Problema:** OpenAI usa 1536 dims, nomic-embed-text usa 768 dims
 **Solución:** Si migrás de OpenAI, hay que regenerar todos los embeddings. No son compatibles.
 

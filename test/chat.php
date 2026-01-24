@@ -7,13 +7,13 @@ session_start();
 
 $modelos = array(
     // Modelos generales
-    'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5', 'directo' => true, 'erotico' => false),
-    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin Mistral', 'directo' => true, 'erotico' => false),
-    'llama3' => array('id' => 'dolphin-llama3:8b', 'nombre' => 'Dolphin Llama3', 'directo' => true, 'erotico' => false),
-    // Modelos escritor (eroticos)
-    'esc-wizard' => array('id' => 'escritor-wizard', 'nombre' => 'Escritor (wizard-vicuna)', 'directo' => true, 'erotico' => true),
-    'esc-dolphin' => array('id' => 'escritor-dolphin', 'nombre' => 'Escritor (dolphin-mistral)', 'directo' => true, 'erotico' => true),
-    'esc-llama3' => array('id' => 'escritor-llama3', 'nombre' => 'Escritor (dolphin-llama3)', 'directo' => true, 'erotico' => true),
+    'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5 7B Instruct', 'directo' => true, 'erotico' => false),
+    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin Mistral 7B v2.6', 'directo' => true, 'erotico' => false),
+    'llama3' => array('id' => 'dolphin-llama3:8b', 'nombre' => 'Dolphin Llama3 8B', 'directo' => true, 'erotico' => false),
+    // Modelos escritor (eroticos) - custom con prompt argentino
+    'esc-wizard' => array('id' => 'escritor-wizard', 'nombre' => 'Escritor (Wizard 7B)', 'directo' => true, 'erotico' => true),
+    'esc-dolphin' => array('id' => 'escritor-dolphin', 'nombre' => 'Escritor (Mistral 7B)', 'directo' => true, 'erotico' => true),
+    'esc-llama3' => array('id' => 'escritor-llama3', 'nombre' => 'Escritor (Llama3 8B)', 'directo' => true, 'erotico' => true),
 );
 
 $modeloKey = isset($_GET['modelo']) ? $_GET['modelo'] : 'qwen';
