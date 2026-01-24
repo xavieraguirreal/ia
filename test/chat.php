@@ -1,14 +1,9 @@
 <?php
 /**
- * Chat interactivo con memoria para probar modelos de IA
- * v1.7 - Con historial de conversación
+ * Chat interactivo con streaming
+ * v1.9 - Streaming + Detener
  */
 session_start();
-
-// Configuración
-$baseUrl = 'http://localhost:8000';
-$ollamaUrl = 'http://localhost:11434';
-$apiKey = 'fd4d2af95ef7df9f1a1bcbd0000dc408f091f77ec5b28e23f8293c71f80b1d3a';
 
 $modelos = array(
     'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5 7B', 'directo' => false),
@@ -17,118 +12,22 @@ $modelos = array(
     'escritor' => array('id' => 'escritor-erotico', 'nombre' => 'Escritor Erotico', 'directo' => true)
 );
 
-// Obtener modelo seleccionado
 $modeloKey = isset($_GET['modelo']) ? $_GET['modelo'] : 'qwen';
-if (!isset($modelos[$modeloKey])) {
-    $modeloKey = 'qwen';
-}
+if (!isset($modelos[$modeloKey])) $modeloKey = 'qwen';
+
 $modeloActual = $modelos[$modeloKey]['id'];
 $modeloNombre = $modelos[$modeloKey]['nombre'];
-$llamarDirecto = $modelos[$modeloKey]['directo'];
+$usarStreaming = $modelos[$modeloKey]['directo']; // Solo streaming para modelos directos a Ollama
 
-// Inicializar historial por modelo
-if (!isset($_SESSION['historial'])) {
-    $_SESSION['historial'] = array();
-}
-if (!isset($_SESSION['historial'][$modeloKey])) {
-    $_SESSION['historial'][$modeloKey] = array();
-}
+// Inicializar historial
+if (!isset($_SESSION['historial'])) $_SESSION['historial'] = array();
+if (!isset($_SESSION['historial'][$modeloKey])) $_SESSION['historial'][$modeloKey] = array();
 
-// Limpiar historial si se solicita
+// Limpiar historial
 if (isset($_GET['limpiar'])) {
     $_SESSION['historial'][$modeloKey] = array();
     header('Location: chat.php?modelo=' . $modeloKey);
     exit;
-}
-
-// Procesar mensaje si se envió
-$respuesta = '';
-$tiempoRespuesta = 0;
-$mensaje = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['mensaje'])) {
-    $mensaje = trim($_POST['mensaje']);
-    $modeloKey = isset($_POST['modelo_key']) ? $_POST['modelo_key'] : $modeloKey;
-    $modeloActual = $modelos[$modeloKey]['id'];
-    $llamarDirecto = $modelos[$modeloKey]['directo'];
-
-    // Agregar mensaje del usuario al historial
-    $_SESSION['historial'][$modeloKey][] = array('role' => 'user', 'content' => $mensaje);
-
-    $inicio = microtime(true);
-
-    if ($llamarDirecto) {
-        // Llamar directo a Ollama
-        $ch = curl_init($ollamaUrl . '/api/chat');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array(
-            'model' => $modeloActual,
-            'messages' => $_SESSION['historial'][$modeloKey],
-            'stream' => false
-        )));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        $tiempoRespuesta = round(microtime(true) - $inicio, 2);
-
-        if ($httpCode === 200) {
-            $data = json_decode($response, true);
-            $respuesta = isset($data['message']['content']) ? $data['message']['content'] : 'Sin respuesta';
-        } else {
-            $respuesta = 'Error HTTP ' . $httpCode . ': ' . $response;
-        }
-    } else {
-        // Llamar a FastAPI
-        $ch = curl_init($baseUrl . '/v1/chat/completions');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-
-        $mensajesAPI = array();
-        $mensajesAPI[] = array(
-            'role' => 'system',
-            'content' => 'Eres un asistente util. Responde en español de forma clara y concisa.'
-        );
-        foreach ($_SESSION['historial'][$modeloKey] as $msg) {
-            $mensajesAPI[] = $msg;
-        }
-
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array(
-            'model' => $modeloActual,
-            'messages' => $mensajesAPI,
-            'max_tokens' => 1000,
-            'temperature' => 0.7,
-        )));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $apiKey,
-        ));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        $tiempoRespuesta = round(microtime(true) - $inicio, 2);
-
-        if ($httpCode === 200) {
-            $data = json_decode($response, true);
-            $respuesta = isset($data['choices'][0]['message']['content'])
-                ? $data['choices'][0]['message']['content']
-                : 'Sin respuesta';
-        } else {
-            $respuesta = 'Error HTTP ' . $httpCode . ': ' . $response;
-        }
-    }
-
-    // Agregar respuesta al historial
-    if ($respuesta && strpos($respuesta, 'Error') !== 0) {
-        $_SESSION['historial'][$modeloKey][] = array('role' => 'assistant', 'content' => $respuesta);
-    }
 }
 
 $historial = $_SESSION['historial'][$modeloKey];
@@ -138,25 +37,19 @@ $historial = $_SESSION['historial'][$modeloKey];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat IA Local - <?php echo $modeloNombre; ?></title>
+    <title>Chat IA - <?php echo $modeloNombre; ?></title>
     <style>
         * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #eee;
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
+            color: #eee; margin: 0; padding: 20px; min-height: 100vh;
         }
         .container { max-width: 900px; margin: 0 auto; }
         h1 { text-align: center; color: #00d9ff; margin-bottom: 5px; }
         .subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 14px; }
 
-        .modelo-selector {
-            display: flex; gap: 8px; justify-content: center;
-            margin-bottom: 20px; flex-wrap: wrap;
-        }
+        .modelo-selector { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
         .modelo-btn {
             padding: 10px 16px; border: 2px solid #444; background: #222;
             color: #fff; border-radius: 8px; cursor: pointer;
@@ -166,79 +59,60 @@ $historial = $_SESSION['historial'][$modeloKey];
         .modelo-btn.active { border-color: #00d9ff; background: #00d9ff22; color: #00d9ff; }
         .modelo-btn.erotico { border-color: #ff6b6b; }
         .modelo-btn.erotico.active { border-color: #ff6b6b; background: #ff6b6b22; color: #ff6b6b; }
+        .badge-stream { font-size: 9px; background: #00cc66; color: #000; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
 
-        .chat-container {
-            background: #222; border-radius: 12px;
-            padding: 20px; margin-bottom: 20px;
-        }
+        .chat-container { background: #222; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 
         .historial {
-            max-height: 400px; overflow-y: auto;
-            margin-bottom: 20px; padding: 10px;
+            height: 400px; overflow-y: auto; margin-bottom: 20px; padding: 15px;
             background: #1a1a2e; border-radius: 8px;
         }
-        .historial:empty::before {
-            content: "No hay mensajes. Escribí algo para comenzar...";
-            color: #666; font-style: italic;
-        }
-        .mensaje { margin-bottom: 15px; padding: 12px; border-radius: 8px; }
-        .mensaje.user {
-            background: #0066cc44; border-left: 3px solid #0066cc;
-            margin-left: 20px;
-        }
-        .mensaje.assistant {
-            background: #00cc6644; border-left: 3px solid #00cc66;
-            margin-right: 20px;
-        }
-        .mensaje-rol {
-            font-size: 11px; color: #888;
-            margin-bottom: 5px; text-transform: uppercase;
-        }
-        .mensaje-contenido { line-height: 1.6; white-space: pre-wrap; }
+        .historial-vacio { color: #666; font-style: italic; text-align: center; padding: 50px; }
+
+        .mensaje { margin-bottom: 15px; padding: 12px; border-radius: 8px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .mensaje.user { background: #0066cc44; border-left: 3px solid #0066cc; margin-left: 40px; }
+        .mensaje.assistant { background: #00cc6644; border-left: 3px solid #00cc66; margin-right: 40px; }
+        .mensaje.streaming { border-left-color: #ffcc00; background: #ffcc0022; }
+        .mensaje-rol { font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; }
+        .mensaje-contenido { line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; }
+        .cursor-stream { display: inline-block; width: 8px; height: 16px; background: #00d9ff; animation: blink 0.5s infinite; margin-left: 2px; vertical-align: middle; }
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
 
         .form-grupo { margin-bottom: 15px; }
         textarea {
-            width: 100%; padding: 15px; border: 2px solid #444;
-            border-radius: 8px; background: #1a1a2e; color: #fff;
-            font-size: 15px; resize: vertical; min-height: 80px;
+            width: 100%; padding: 15px; border: 2px solid #444; border-radius: 8px;
+            background: #1a1a2e; color: #fff; font-size: 15px; resize: vertical; min-height: 80px;
         }
         textarea:focus { outline: none; border-color: #00d9ff; }
+        textarea:disabled { opacity: 0.5; }
 
         .botones { display: flex; gap: 10px; }
         .btn-enviar {
-            flex: 1; padding: 15px;
-            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
-            border: none; border-radius: 8px; color: #000;
-            font-size: 16px; font-weight: bold; cursor: pointer;
+            flex: 1; padding: 15px; background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
+            border: none; border-radius: 8px; color: #000; font-size: 16px; font-weight: bold; cursor: pointer;
         }
         .btn-enviar:hover { transform: scale(1.02); }
+        .btn-enviar:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         .btn-limpiar {
-            padding: 15px 25px; background: #cc3333; border: none;
-            border-radius: 8px; color: #fff; font-size: 14px;
-            cursor: pointer; text-decoration: none;
+            padding: 15px 25px; background: #cc3333; border: none; border-radius: 8px;
+            color: #fff; font-size: 14px; cursor: pointer; text-decoration: none;
         }
         .btn-limpiar:hover { background: #aa2222; }
-
-        .stats {
-            text-align: center; padding: 10px;
-            background: #1a1a2e; border-radius: 8px;
-            font-size: 13px; color: #888;
+        .btn-detener {
+            padding: 15px 25px; background: #ff9900; border: none; border-radius: 8px;
+            color: #000; font-size: 14px; font-weight: bold; cursor: pointer;
         }
+        .btn-detener:hover { background: #cc7700; }
 
-        .loading { display: none; text-align: center; padding: 20px; }
-        .loading.show { display: block; }
-        .spinner {
-            border: 3px solid #333; border-top: 3px solid #00d9ff;
-            border-radius: 50%; width: 40px; height: 40px;
-            animation: spin 1s linear infinite; margin: 0 auto 10px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .stats { text-align: center; padding: 10px; background: #1a1a2e; border-radius: 8px; font-size: 13px; color: #888; }
+        .tiempo { color: #00d9ff; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Chat IA Local</h1>
-        <p class="subtitle">v1.7 - Con memoria de conversacion | Modelo: <?php echo $modeloNombre; ?></p>
+        <p class="subtitle">v1.9 - Streaming + Detener | <?php echo $modeloNombre; ?></p>
 
         <div class="modelo-selector">
             <?php foreach ($modelos as $key => $modelo): ?>
@@ -246,6 +120,7 @@ $historial = $_SESSION['historial'][$modeloKey];
                 <a href="?modelo=<?php echo $key; ?>"
                    class="modelo-btn <?php echo $esErotico ? 'erotico' : ''; ?> <?php echo $modeloKey === $key ? 'active' : ''; ?>">
                     <?php echo $modelo['nombre']; ?>
+                    <?php if ($modelo['directo']): ?><span class="badge-stream">STREAM</span><?php endif; ?>
                     <?php if (isset($_SESSION['historial'][$key]) && count($_SESSION['historial'][$key]) > 0): ?>
                         (<?php echo count($_SESSION['historial'][$key]); ?>)
                     <?php endif; ?>
@@ -255,59 +130,218 @@ $historial = $_SESSION['historial'][$modeloKey];
 
         <div class="chat-container">
             <div class="historial" id="historial">
-                <?php foreach ($historial as $msg): ?>
-                    <div class="mensaje <?php echo $msg['role']; ?>">
-                        <div class="mensaje-rol"><?php echo $msg['role'] === 'user' ? 'Vos' : $modeloNombre; ?></div>
-                        <div class="mensaje-contenido"><?php echo nl2br(htmlspecialchars($msg['content'])); ?></div>
-                    </div>
-                <?php endforeach; ?>
+                <?php if (empty($historial)): ?>
+                    <div class="historial-vacio" id="placeholder">Escribi algo para comenzar la conversacion...</div>
+                <?php else: ?>
+                    <?php foreach ($historial as $msg): ?>
+                        <div class="mensaje <?php echo $msg['role']; ?>">
+                            <div class="mensaje-rol"><?php echo $msg['role'] === 'user' ? 'Vos' : '<?php echo $modeloNombre; ?>'; ?></div>
+                            <div class="mensaje-contenido"><?php echo nl2br(htmlspecialchars($msg['content'])); ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
 
-            <form method="POST" id="chatForm">
-                <input type="hidden" name="modelo_key" value="<?php echo $modeloKey; ?>">
-
+            <form id="chatForm" onsubmit="enviarMensaje(event)">
                 <div class="form-grupo">
-                    <textarea name="mensaje" id="mensaje" placeholder="Escribi tu mensaje..." autofocus></textarea>
+                    <textarea name="mensaje" id="mensaje" placeholder="Escribi tu mensaje... (Ctrl+Enter para enviar)" autofocus></textarea>
                 </div>
-
                 <div class="botones">
-                    <button type="submit" class="btn-enviar">Enviar</button>
+                    <button type="submit" class="btn-enviar" id="btnEnviar">Enviar</button>
+                    <button type="button" class="btn-detener" id="btnDetener" style="display:none;" onclick="detenerGeneracion()">Detener</button>
                     <a href="?modelo=<?php echo $modeloKey; ?>&limpiar=1" class="btn-limpiar"
-                       onclick="return confirm('¿Limpiar historial de conversacion?');">
-                        Limpiar
-                    </a>
+                       onclick="return confirm('¿Limpiar historial?');">Limpiar</a>
                 </div>
             </form>
-
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Generando respuesta... (puede tardar 30-60 segundos)</p>
-            </div>
         </div>
 
         <div class="stats">
-            Mensajes en esta conversacion: <?php echo count($historial); ?> |
-            Modelo: <?php echo $modeloActual; ?> |
-            <?php if ($tiempoRespuesta > 0): ?>Ultima respuesta: <?php echo $tiempoRespuesta; ?>s<?php endif; ?>
+            <span id="statsMsg">Mensajes: <?php echo count($historial); ?></span> |
+            <span id="statsTiempo"></span>
+            Modelo: <?php echo $modeloActual; ?>
+            <?php if ($usarStreaming): ?> | <span style="color:#00cc66">Streaming activo</span><?php endif; ?>
         </div>
     </div>
 
     <script>
-        // Auto-scroll al final del historial
-        var historial = document.getElementById('historial');
-        historial.scrollTop = historial.scrollHeight;
+        const modeloKey = '<?php echo $modeloKey; ?>';
+        const modeloId = '<?php echo $modeloActual; ?>';
+        const modeloNombre = '<?php echo $modeloNombre; ?>';
+        const usarStreaming = <?php echo $usarStreaming ? 'true' : 'false'; ?>;
 
-        // Mostrar loading al enviar
-        document.getElementById('chatForm').addEventListener('submit', function() {
-            document.getElementById('loading').classList.add('show');
-        });
+        const historialDiv = document.getElementById('historial');
+        const mensajeInput = document.getElementById('mensaje');
+        const btnEnviar = document.getElementById('btnEnviar');
+        const btnDetener = document.getElementById('btnDetener');
+        const statsTiempo = document.getElementById('statsTiempo');
 
-        // Enviar con Ctrl+Enter
-        document.getElementById('mensaje').addEventListener('keydown', function(e) {
+        let abortController = null;
+        let generando = false;
+
+        function detenerGeneracion() {
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
+            generando = false;
+            btnEnviar.style.display = 'block';
+            btnDetener.style.display = 'none';
+            btnEnviar.disabled = false;
+            btnEnviar.textContent = 'Enviar';
+            mensajeInput.disabled = false;
+            statsTiempo.innerHTML = '<span style="color:#ff9900">Detenido</span> | ';
+        }
+
+        // Auto-scroll
+        function scrollToBottom() {
+            historialDiv.scrollTop = historialDiv.scrollHeight;
+        }
+        scrollToBottom();
+
+        // Ctrl+Enter para enviar
+        mensajeInput.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'Enter') {
-                document.getElementById('chatForm').submit();
+                document.getElementById('chatForm').dispatchEvent(new Event('submit'));
             }
         });
+
+        function agregarMensaje(rol, contenido, streaming = false) {
+            // Quitar placeholder si existe
+            const placeholder = document.getElementById('placeholder');
+            if (placeholder) placeholder.remove();
+
+            const div = document.createElement('div');
+            div.className = 'mensaje ' + rol + (streaming ? ' streaming' : '');
+            div.innerHTML = `
+                <div class="mensaje-rol">${rol === 'user' ? 'Vos' : modeloNombre}</div>
+                <div class="mensaje-contenido">${contenido}${streaming ? '<span class="cursor-stream"></span>' : ''}</div>
+            `;
+            historialDiv.appendChild(div);
+            scrollToBottom();
+            return div;
+        }
+
+        function actualizarMensaje(div, contenido, finalizado = false) {
+            const contenidoDiv = div.querySelector('.mensaje-contenido');
+            contenidoDiv.innerHTML = contenido.replace(/\n/g, '<br>') +
+                (finalizado ? '' : '<span class="cursor-stream"></span>');
+            if (finalizado) {
+                div.classList.remove('streaming');
+            }
+            scrollToBottom();
+        }
+
+        async function enviarMensaje(e) {
+            e.preventDefault();
+
+            const mensaje = mensajeInput.value.trim();
+            if (!mensaje) return;
+
+            // Deshabilitar input y mostrar botón detener
+            mensajeInput.disabled = true;
+            btnEnviar.style.display = 'none';
+            btnDetener.style.display = 'block';
+            generando = true;
+            abortController = new AbortController();
+
+            // Agregar mensaje del usuario
+            agregarMensaje('user', mensaje.replace(/\n/g, '<br>'));
+            mensajeInput.value = '';
+
+            const inicio = Date.now();
+            statsTiempo.innerHTML = '<span class="tiempo">Generando...</span> | ';
+
+            if (usarStreaming) {
+                // Usar streaming
+                const respuestaDiv = agregarMensaje('assistant', '', true);
+                let respuestaCompleta = '';
+
+                try {
+                    const response = await fetch('stream.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            modelo: modeloId,
+                            modelo_key: modeloKey,
+                            mensaje: mensaje
+                        }),
+                        signal: abortController.signal
+                    });
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data === '[DONE]') continue;
+
+                                try {
+                                    const json = JSON.parse(data);
+                                    if (json.token) {
+                                        respuestaCompleta += json.token;
+                                        actualizarMensaje(respuestaDiv, respuestaCompleta, false);
+                                    }
+                                    if (json.done) {
+                                        actualizarMensaje(respuestaDiv, respuestaCompleta, true);
+                                    }
+                                    if (json.error) {
+                                        actualizarMensaje(respuestaDiv, 'Error: ' + json.error, true);
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+
+                    actualizarMensaje(respuestaDiv, respuestaCompleta, true);
+
+                } catch (error) {
+                    actualizarMensaje(respuestaDiv, 'Error: ' + error.message, true);
+                }
+
+            } else {
+                // Sin streaming (para modelos via FastAPI)
+                try {
+                    const response = await fetch('no-stream.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            modelo: modeloId,
+                            modelo_key: modeloKey,
+                            mensaje: mensaje
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.respuesta) {
+                        agregarMensaje('assistant', data.respuesta.replace(/\n/g, '<br>'));
+                    } else if (data.error) {
+                        agregarMensaje('assistant', 'Error: ' + data.error);
+                    }
+                } catch (error) {
+                    agregarMensaje('assistant', 'Error: ' + error.message);
+                }
+            }
+
+            // Calcular tiempo
+            const tiempo = ((Date.now() - inicio) / 1000).toFixed(1);
+            statsTiempo.innerHTML = `<span class="tiempo">${tiempo}s</span> | `;
+
+            // Rehabilitar input
+            generando = false;
+            abortController = null;
+            mensajeInput.disabled = false;
+            btnEnviar.style.display = 'block';
+            btnDetener.style.display = 'none';
+            mensajeInput.focus();
+        }
     </script>
 </body>
 </html>
