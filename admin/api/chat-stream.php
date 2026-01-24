@@ -33,6 +33,7 @@ if (isset($auth['error'])) {
 $input = json_decode(file_get_contents('php://input'), true);
 $modelo = $input['model'] ?? 'qwen2.5:3b-instruct';
 $messages = $input['messages'] ?? [];
+$options = $input['options'] ?? [];
 
 if (empty($messages)) {
     echo "data: " . json_encode(['error' => 'Messages requeridos']) . "\n\n";
@@ -43,14 +44,22 @@ $inicio = microtime(true);
 $respuestaCompleta = '';
 $tokensOutput = 0;
 
-// Llamar a Ollama con streaming
-$ch = curl_init(OLLAMA_URL . '/api/chat');
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+// Preparar payload para Ollama
+$ollamaPayload = [
     'model' => $modelo,
     'messages' => $messages,
     'stream' => true
-]));
+];
+
+// Agregar opciones si existen (temperature, num_predict, etc.)
+if (!empty($options)) {
+    $ollamaPayload['options'] = $options;
+}
+
+// Llamar a Ollama con streaming
+$ch = curl_init(OLLAMA_URL . '/api/chat');
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($ollamaPayload));
 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 curl_setopt($ch, CURLOPT_TIMEOUT, 300);
 
