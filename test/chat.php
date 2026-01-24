@@ -1,16 +1,19 @@
 <?php
 /**
  * Chat interactivo con streaming
- * v2.0 - Streaming en todos
+ * v2.1 - Modelos Escritor
  */
 session_start();
 
 $modelos = array(
-    'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5', 'directo' => true),
-    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin Mistral', 'directo' => true),
-    'llama3' => array('id' => 'dolphin-llama3:8b', 'nombre' => 'Dolphin Llama3', 'directo' => true),
-    'uncensored' => array('id' => 'uncensored-custom', 'nombre' => 'Wizard Uncensored', 'directo' => true),
-    'escritor' => array('id' => 'escritor-erotico', 'nombre' => 'Escritor', 'directo' => true)
+    // Modelos generales
+    'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5', 'directo' => true, 'erotico' => false),
+    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin Mistral', 'directo' => true, 'erotico' => false),
+    'llama3' => array('id' => 'dolphin-llama3:8b', 'nombre' => 'Dolphin Llama3', 'directo' => true, 'erotico' => false),
+    // Modelos escritor (eroticos)
+    'esc-wizard' => array('id' => 'escritor-wizard', 'nombre' => 'Escritor (wizard-vicuna)', 'directo' => true, 'erotico' => true),
+    'esc-dolphin' => array('id' => 'escritor-dolphin', 'nombre' => 'Escritor (dolphin-mistral)', 'directo' => true, 'erotico' => true),
+    'esc-llama3' => array('id' => 'escritor-llama3', 'nombre' => 'Escritor (dolphin-llama3)', 'directo' => true, 'erotico' => true),
 );
 
 $modeloKey = isset($_GET['modelo']) ? $_GET['modelo'] : 'qwen';
@@ -113,11 +116,11 @@ $historial = $_SESSION['historial'][$modeloKey];
 <body>
     <div class="container">
         <h1>Chat IA Local</h1>
-        <p class="subtitle">v2.0 - Streaming en todos | <?php echo $modeloNombre; ?></p>
+        <p class="subtitle">v2.1 - Modelos Escritor | <?php echo $modeloNombre; ?></p>
 
         <div class="modelo-selector">
             <?php foreach ($modelos as $key => $modelo): ?>
-                <?php $esErotico = ($key === 'escritor' || $key === 'uncensored'); ?>
+                <?php $esErotico = isset($modelo['erotico']) && $modelo['erotico']; ?>
                 <a href="?modelo=<?php echo $key; ?>"
                    class="modelo-btn <?php echo $esErotico ? 'erotico' : ''; ?> <?php echo $modeloKey === $key ? 'active' : ''; ?>">
                     <?php echo $modelo['nombre']; ?>
