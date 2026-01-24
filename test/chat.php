@@ -7,7 +7,8 @@ session_start();
 
 $modelos = array(
     'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5', 'directo' => true),
-    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin', 'directo' => true),
+    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin Mistral', 'directo' => true),
+    'llama3' => array('id' => 'dolphin-llama3:8b', 'nombre' => 'Dolphin Llama3', 'directo' => true),
     'uncensored' => array('id' => 'uncensored-custom', 'nombre' => 'Wizard Uncensored', 'directo' => true),
     'escritor' => array('id' => 'escritor-erotico', 'nombre' => 'Escritor', 'directo' => true)
 );
