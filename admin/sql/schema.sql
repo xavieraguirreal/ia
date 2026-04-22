@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS ia_proyectos (
 CREATE TABLE IF NOT EXISTS ia_usage_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     proyecto_id INT NOT NULL,
-    endpoint ENUM('chat', 'embeddings') NOT NULL,
+    endpoint ENUM('chat', 'embeddings', 'translate') NOT NULL,
     modelo VARCHAR(100),
     tokens_input INT DEFAULT 0,
     tokens_output INT DEFAULT 0,

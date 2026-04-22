@@ -4,6 +4,9 @@ api/venv/
 __pycache__/
 *.pyc
 
+# Credenciales por entorno (copiar desde admin/config.example.php)
+admin/config.php
+
 # IDE
 .idea/
 .vscode/

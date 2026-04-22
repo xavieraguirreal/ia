@@ -114,7 +114,7 @@ foreach ($textos as $t) {
 
     if (isset($resultado['error'])) {
         $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
-        registrarUso($auth['proyecto_id'], 'chat', $modelo, $totalIn, $totalOut, $tiempoMs, 500, $resultado['error']);
+        registrarUso($auth['proyecto_id'], 'translate', $modelo, $totalIn, $totalOut, $tiempoMs, 500, $resultado['error']);
         http_response_code(500);
         echo json_encode(['error' => $resultado['error']]);
         exit;
@@ -127,8 +127,7 @@ foreach ($textos as $t) {
 
 $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
 
-// Log (endpoint = 'chat' para compatibilidad con ENUM actual; el modelo y tokens quedan registrados igual)
-registrarUso($auth['proyecto_id'], 'chat', $modelo, $totalIn, $totalOut, $tiempoMs);
+registrarUso($auth['proyecto_id'], 'translate', $modelo, $totalIn, $totalOut, $tiempoMs);
 
 // === Respuesta ===
 $out = [

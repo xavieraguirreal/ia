@@ -1,7 +1,10 @@
 <?php
 /**
- * Configuracion del Admin Panel
- * IMPORTANTE: Cambiar estos valores en produccion
+ * Configuracion del Admin Panel - EJEMPLO
+ *
+ * COPIAR este archivo como admin/config.php en cada entorno,
+ * y completar con las credenciales reales. admin/config.php
+ * NO se trackea en git (ver .gitignore).
  */
 
 // Base de datos
