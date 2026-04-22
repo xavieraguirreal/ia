@@ -1,23 +1,29 @@
 <?php
 /**
  * Chat interactivo con streaming
- * v2.1 - Modelos Escritor
+ * v4.0 - Qwen 2.5 (asistente + traductor)
  */
 session_start();
 
+$modeloBase = 'qwen2.5:7b-instruct';
+
 $modelos = array(
-    // Modelos generales
-    'qwen' => array('id' => 'qwen2.5:7b-instruct', 'nombre' => 'Qwen 2.5 7B Instruct', 'directo' => true, 'erotico' => false),
-    'dolphin' => array('id' => 'dolphin-mistral:7b-v2.6', 'nombre' => 'Dolphin Mistral 7B v2.6', 'directo' => true, 'erotico' => false),
-    'llama3' => array('id' => 'dolphin-llama3:8b', 'nombre' => 'Dolphin Llama3 8B', 'directo' => true, 'erotico' => false),
-    // Modelos escritor (eroticos) - custom con prompt argentino
-    'esc-wizard' => array('id' => 'escritor-wizard', 'nombre' => 'Escritor (Wizard 7B)', 'directo' => true, 'erotico' => true),
-    'esc-dolphin' => array('id' => 'escritor-dolphin', 'nombre' => 'Escritor (Mistral 7B)', 'directo' => true, 'erotico' => true),
-    'esc-llama3' => array('id' => 'escritor-llama3', 'nombre' => 'Escritor (Llama3 8B)', 'directo' => true, 'erotico' => true),
+    'asistente' => array(
+        'id' => $modeloBase,
+        'nombre' => 'Asistente',
+        'directo' => true,
+        'system' => 'Sos un asistente util y directo. Respondes en español claro y conciso. Si no sabes algo, lo decis honestamente en vez de inventar.'
+    ),
+    'traductor' => array(
+        'id' => $modeloBase,
+        'nombre' => 'Traductor',
+        'directo' => true,
+        'system' => 'Sos un traductor profesional multilingue. El usuario va a escribir el texto a traducir indicando el idioma destino (por ejemplo: "al ingles: Hola mundo" o "to French: Good morning"). Devolve UNICAMENTE la traduccion, sin comentarios, sin explicaciones, sin comillas envolventes. Preserva formato, puntuacion y saltos de linea del original. No traduzcas nombres propios, marcas ni URLs.'
+    ),
 );
 
-$modeloKey = isset($_GET['modelo']) ? $_GET['modelo'] : 'qwen';
-if (!isset($modelos[$modeloKey])) $modeloKey = 'qwen';
+$modeloKey = isset($_GET['modelo']) ? $_GET['modelo'] : 'asistente';
+if (!isset($modelos[$modeloKey])) $modeloKey = 'asistente';
 
 $modeloActual = $modelos[$modeloKey]['id'];
 $modeloNombre = $modelos[$modeloKey]['nombre'];
@@ -116,13 +122,12 @@ $historial = $_SESSION['historial'][$modeloKey];
 <body>
     <div class="container">
         <h1>Chat IA Local</h1>
-        <p class="subtitle">v2.1 - Modelos Escritor | <?php echo $modeloNombre; ?></p>
+        <p class="subtitle">v4.0 - Qwen 2.5 | <?php echo $modeloNombre; ?></p>
 
         <div class="modelo-selector">
             <?php foreach ($modelos as $key => $modelo): ?>
-                <?php $esErotico = isset($modelo['erotico']) && $modelo['erotico']; ?>
                 <a href="?modelo=<?php echo $key; ?>"
-                   class="modelo-btn <?php echo $esErotico ? 'erotico' : ''; ?> <?php echo $modeloKey === $key ? 'active' : ''; ?>">
+                   class="modelo-btn <?php echo $modeloKey === $key ? 'active' : ''; ?>">
                     <?php echo $modelo['nombre']; ?>
                     <?php if ($modelo['directo']): ?><span class="badge-stream">STREAM</span><?php endif; ?>
                     <?php if (isset($_SESSION['historial'][$key]) && count($_SESSION['historial'][$key]) > 0): ?>
@@ -171,6 +176,7 @@ $historial = $_SESSION['historial'][$modeloKey];
         const modeloKey = '<?php echo $modeloKey; ?>';
         const modeloId = '<?php echo $modeloActual; ?>';
         const modeloNombre = '<?php echo $modeloNombre; ?>';
+        const systemPrompt = <?php echo json_encode($modelos[$modeloKey]['system']); ?>;
         const usarStreaming = <?php echo $usarStreaming ? 'true' : 'false'; ?>;
 
         const historialDiv = document.getElementById('historial');
@@ -267,7 +273,8 @@ $historial = $_SESSION['historial'][$modeloKey];
                         body: JSON.stringify({
                             modelo: modeloId,
                             modelo_key: modeloKey,
-                            mensaje: mensaje
+                            mensaje: mensaje,
+                            system: systemPrompt
                         }),
                         signal: abortController.signal
                     });

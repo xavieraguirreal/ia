@@ -18,9 +18,10 @@ $ollamaUrl = 'http://localhost:11434';
 
 // Obtener datos del POST
 $input = json_decode(file_get_contents('php://input'), true);
-$modelo = isset($input['modelo']) ? $input['modelo'] : 'escritor-erotico';
+$modelo = isset($input['modelo']) ? $input['modelo'] : 'qwen2.5:7b-instruct';
 $mensaje = isset($input['mensaje']) ? $input['mensaje'] : '';
-$modeloKey = isset($input['modelo_key']) ? $input['modelo_key'] : 'escritor';
+$modeloKey = isset($input['modelo_key']) ? $input['modelo_key'] : 'asistente';
+$systemPrompt = isset($input['system']) ? $input['system'] : '';
 
 if (empty($mensaje)) {
     echo "data: {\"error\": \"Mensaje vacio\"}\n\n";
@@ -38,13 +39,29 @@ if (!isset($_SESSION['historial'][$modeloKey])) {
 // Agregar mensaje del usuario
 $_SESSION['historial'][$modeloKey][] = array('role' => 'user', 'content' => $mensaje);
 
+// Preparar mensajes con system prompt si existe
+$mensajes = array();
+if (!empty($systemPrompt)) {
+    $mensajes[] = array('role' => 'system', 'content' => $systemPrompt);
+}
+$mensajes = array_merge($mensajes, $_SESSION['historial'][$modeloKey]);
+
+// DEBUG: Log para ver qué se está enviando
+error_log("MODELO: " . $modelo);
+error_log("SYSTEM: " . $systemPrompt);
+error_log("MENSAJES: " . json_encode($mensajes));
+
 // Preparar request a Ollama con stream
 $ch = curl_init($ollamaUrl . '/api/chat');
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array(
     'model' => $modelo,
-    'messages' => $_SESSION['historial'][$modeloKey],
-    'stream' => true
+    'messages' => $mensajes,
+    'stream' => true,
+    'options' => array(
+        'temperature' => 1.0,
+        'num_predict' => 2048
+    )
 )));
 curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
 curl_setopt($ch, CURLOPT_TIMEOUT, 300);
