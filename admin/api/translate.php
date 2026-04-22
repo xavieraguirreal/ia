@@ -149,87 +149,70 @@ if (is_array($text)) {
     $items[] = ['key' => 0, 'text' => $text, 'html' => $htmlTop];
 }
 
-// === Procesar cada item ===
+// === Procesar cada item (con chunking automatico para textos >3000 chars) ===
 $idiomaDestino = normalizarNombreIdioma($to);
 $idiomaOrigen  = ($from === '' || strtolower($from) === 'auto')
     ? 'el idioma de origen (detectalo automaticamente)'
     : normalizarNombreIdioma($from);
 
-$inicio   = microtime(true);
-$totalIn  = 0;
-$totalOut = 0;
-$resultados = [];
+$inicio      = microtime(true);
+$totalIn     = 0;
+$totalOut    = 0;
+$totalChunks = 0;
+$resultados  = [];
 
 foreach ($items as $item) {
     $systemPrompt = construirSystemPrompt($idiomaOrigen, $idiomaDestino, $tone, $context, $item['html']);
+    $chunks       = chunkearTexto($item['text'], $item['html']);
+    $totalChunks += count($chunks);
+    $partes       = [];
 
-    $messages = [
-        ['role' => 'system', 'content' => $systemPrompt],
-        ['role' => 'user',   'content' => $item['text']],
-    ];
+    foreach ($chunks as $ci => $chunk) {
+        $result = traducirItem($chunk, $item['html'], $modelo, $systemPrompt, $totalIn, $totalOut);
 
-    $resp = ollamaChat($modelo, $messages);
-    if (isset($resp['error'])) {
-        $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
-        registrarUso($auth['proyecto_id'], 'translate', $modelo, $totalIn, $totalOut, $tiempoMs, 500, $resp['error']);
-        errorResponse(500, 'MODEL_ERROR', $resp['error'], ['model' => $modelo, 'item_id' => $item['key']]);
-        exit;
-    }
-    $totalIn  += (int) $resp['tokens_input'];
-    $totalOut += (int) $resp['tokens_output'];
-
-    $traduccion = limpiarSalida($resp['content'], $item['html']);
-
-    // === Validacion HTML con retry una vez ===
-    if ($item['html']) {
-        $val = validarEstructuraHtml($item['text'], $traduccion);
-        if (!$val['ok']) {
-            $messagesRetry = $messages;
-            $messagesRetry[0]['content'] .= "\n\nIMPORTANTE: tu intento anterior modifico la estructura HTML. Debes preservar EXACTAMENTE la cantidad y orden de tags del original. No agregues, no quites, no renombres ningun tag.";
-            $respRetry = ollamaChat($modelo, $messagesRetry);
-            if (!isset($respRetry['error'])) {
-                $totalIn  += (int) $respRetry['tokens_input'];
-                $totalOut += (int) $respRetry['tokens_output'];
-                $traduccionRetry = limpiarSalida($respRetry['content'], true);
-                $val2 = validarEstructuraHtml($item['text'], $traduccionRetry);
-                if ($val2['ok']) {
-                    $traduccion = $traduccionRetry;
-                } else {
-                    $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
-                    registrarUso($auth['proyecto_id'], 'translate', $modelo, $totalIn, $totalOut, $tiempoMs, 422, 'HTML_STRUCTURE_MISMATCH');
-                    errorResponse(422, 'HTML_STRUCTURE_MISMATCH', 'La traduccion modifico la estructura HTML del original. El modelo fallo dos veces; probar con un texto mas corto, dividirlo en partes, o usar tone/context para guiar mejor.', [
-                        'item_id'       => $item['key'],
-                        'original_tags' => $val['original'],
-                        'returned_tags' => $val2['traducido'],
-                    ]);
-                    exit;
-                }
-            } else {
-                $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
-                registrarUso($auth['proyecto_id'], 'translate', $modelo, $totalIn, $totalOut, $tiempoMs, 500, $respRetry['error']);
-                errorResponse(500, 'MODEL_ERROR', $respRetry['error'], ['model' => $modelo, 'item_id' => $item['key']]);
-                exit;
-            }
+        if (isset($result['error'])) {
+            $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
+            registrarUso($auth['proyecto_id'], 'translate', $modelo, $totalIn, $totalOut, $tiempoMs, 500, $result['error']);
+            errorResponse(500, 'MODEL_ERROR', $result['error'], ['model' => $modelo, 'item_id' => $item['key']]);
+            exit;
         }
+        if (isset($result['mismatch'])) {
+            $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
+            registrarUso($auth['proyecto_id'], 'translate', $modelo, $totalIn, $totalOut, $tiempoMs, 422, 'HTML_STRUCTURE_MISMATCH');
+            errorResponse(422, 'HTML_STRUCTURE_MISMATCH', 'La traduccion modifico la estructura HTML del original. El modelo fallo dos veces; intentar con texto mas corto o dividirlo manualmente.', [
+                'item_id'       => $item['key'],
+                'chunk_index'   => $ci,
+                'original_tags' => $result['original'],
+                'returned_tags' => $result['traducido'],
+            ]);
+            exit;
+        }
+        $partes[] = $result['value'];
     }
 
-    $resultados[] = ['key' => $item['key'], 'value' => $traduccion];
+    $traduccion    = implode($item['html'] ? '' : "\n\n", $partes);
+    $resultados[]  = ['key' => $item['key'], 'value' => $traduccion];
 }
 
 $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
 registrarUso($auth['proyecto_id'], 'translate', $modelo, $totalIn, $totalOut, $tiempoMs);
 
 // === Armar respuesta segun forma del input ===
+$usage = [
+    'prompt_tokens'     => $totalIn,
+    'completion_tokens' => $totalOut,
+    'total_tokens'      => $totalIn + $totalOut,
+    'tiempo_ms'         => $tiempoMs,
+];
+if ($totalChunks > count($items)) {
+    $usage['chunks'] = $totalChunks;
+}
+
 $out = [
     'from'  => $from === '' ? 'auto' : $from,
     'to'    => $to,
     'model' => $modelo,
-    'usage' => [
-        'prompt_tokens'     => $totalIn,
-        'completion_tokens' => $totalOut,
-        'total_tokens'      => $totalIn + $totalOut,
-        'tiempo_ms'         => $tiempoMs,
-    ],
+    'usage' => $usage,
 ];
 
 if ($inputForm === 'single') {
@@ -366,6 +349,128 @@ function validarEstructuraHtml($original, $traducido) {
         return ['ok' => false, 'original' => $count1, 'traducido' => $count2];
     }
     return ['ok' => true];
+}
+
+/**
+ * Traduce un fragmento de texto con validacion HTML y retry automatico.
+ * Retorna ['value' => string] en exito, ['error' => string] o ['mismatch' => true, ...] en fallo.
+ */
+function traducirItem($texto, $html, $modelo, $systemPrompt, &$totalIn, &$totalOut) {
+    $messages = [
+        ['role' => 'system', 'content' => $systemPrompt],
+        ['role' => 'user',   'content' => $texto],
+    ];
+
+    $resp = ollamaChat($modelo, $messages);
+    if (isset($resp['error'])) {
+        return ['error' => $resp['error']];
+    }
+    $totalIn  += (int) $resp['tokens_input'];
+    $totalOut += (int) $resp['tokens_output'];
+
+    $traduccion = limpiarSalida($resp['content'], $html);
+
+    if ($html) {
+        $val = validarEstructuraHtml($texto, $traduccion);
+        if (!$val['ok']) {
+            $messagesRetry = $messages;
+            $messagesRetry[0]['content'] .= "\n\nIMPORTANTE: tu intento anterior modifico la estructura HTML. Debes preservar EXACTAMENTE la cantidad y orden de tags del original. No agregues, no quites, no renombres ningun tag.";
+            $respRetry = ollamaChat($modelo, $messagesRetry);
+            if (isset($respRetry['error'])) {
+                return ['error' => $respRetry['error']];
+            }
+            $totalIn  += (int) $respRetry['tokens_input'];
+            $totalOut += (int) $respRetry['tokens_output'];
+            $traduccionRetry = limpiarSalida($respRetry['content'], true);
+            $val2 = validarEstructuraHtml($texto, $traduccionRetry);
+            if ($val2['ok']) {
+                $traduccion = $traduccionRetry;
+            } else {
+                return ['mismatch' => true, 'original' => $val['original'], 'traducido' => $val2['traducido']];
+            }
+        }
+    }
+
+    return ['value' => $traduccion];
+}
+
+/**
+ * Divide texto en chunks de max $limite chars respetando limites naturales.
+ * Para HTML corta en bordes de tags de bloque; para texto plano en parrafos/oraciones.
+ */
+function chunkearTexto($texto, $html, $limite = 3000) {
+    if (mb_strlen($texto) <= $limite) {
+        return [$texto];
+    }
+    return $html ? chunkearHtml($texto, $limite) : chunkearPlano($texto, $limite);
+}
+
+function chunkearHtml($html, $limite) {
+    // Corta despues de cada tag de bloque de cierre para mantener fragmentos validos
+    $parts = preg_split(
+        '/(?<=<\/(p|h[1-6]|li|blockquote|div|section|article|ul|ol|dl|pre|table|figure|header|footer|nav|aside)>)/i',
+        $html
+    );
+
+    $chunks = [];
+    $actual = '';
+
+    foreach ($parts as $part) {
+        if (mb_strlen($actual . $part) <= $limite) {
+            $actual .= $part;
+        } else {
+            if (trim($actual) !== '') {
+                $chunks[] = trim($actual);
+            }
+            // Si la parte sola supera el limite, se agrega de todas formas como chunk unico
+            $actual = $part;
+        }
+    }
+    if (trim($actual) !== '') {
+        $chunks[] = trim($actual);
+    }
+
+    return array_values(array_filter($chunks, fn($c) => trim($c) !== ''));
+}
+
+function chunkearPlano($texto, $limite) {
+    // Divide primero por parrafos (doble salto de linea), luego por oraciones si hace falta
+    $partes = preg_split('/(\n\n+)/', $texto, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+    $chunks = [];
+    $actual = '';
+
+    foreach ($partes as $parte) {
+        if (mb_strlen($actual . $parte) <= $limite) {
+            $actual .= $parte;
+        } else {
+            if (trim($actual) !== '') {
+                $chunks[] = trim($actual);
+            }
+            if (mb_strlen($parte) > $limite) {
+                // Parrafo demasiado largo: dividir por oraciones
+                $oraciones = preg_split('/(?<=[.!?])\s+/', trim($parte));
+                $sub = '';
+                foreach ($oraciones as $o) {
+                    if (mb_strlen($sub . ' ' . $o) <= $limite) {
+                        $sub .= ($sub !== '' ? ' ' : '') . $o;
+                    } else {
+                        if ($sub !== '') $chunks[] = $sub;
+                        $sub = $o;
+                    }
+                }
+                if ($sub !== '') $chunks[] = $sub;
+                $actual = '';
+            } else {
+                $actual = $parte;
+            }
+        }
+    }
+    if (trim($actual) !== '') {
+        $chunks[] = trim($actual);
+    }
+
+    return array_values(array_filter($chunks, fn($c) => trim($c) !== ''));
 }
 
 /**
