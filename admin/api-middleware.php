@@ -88,7 +88,10 @@ function validarApiKey($authHeader) {
         'ok' => true,
         'proyecto_id' => $proyecto['id'],
         'proyecto_nombre' => $proyecto['nombre'],
-        'requests_restantes' => $proyecto['rate_limit_diario'] - $requestsHoy - 1
+        'rate_limit_diario' => (int) $proyecto['rate_limit_diario'],
+        'usado_hoy' => (int) $requestsHoy,
+        'requests_restantes' => (int) ($proyecto['rate_limit_diario'] - $requestsHoy - 1),
+        'reset_at' => strtotime('tomorrow')
     ];
 }
 
